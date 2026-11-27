@@ -128,8 +128,12 @@ footer{text-align:center;font-size:12px;color:#7a8a99;padding:18px 10px 26px;lin
 <button data-site="arafat" onclick="setSiteFilter('arafat')">عرفات</button>
 <button data-site="muzdalifah" onclick="setSiteFilter('muzdalifah')">مزدلفة</button>
 </div>
-<div class="row"><div><label>التاريخ</label><input id="repDate" type="date"></div><div style="flex:0 0 110px"><label>&nbsp;</label><button class="calc" style="margin-top:0" onclick="loadReports()">عرض</button></div></div>
-<div id="reportsList" style="margin-top:12px"></div>
+<div id="peopleReportsList" style="margin-top:12px"></div>
+<div id="personFile" class="hidden">
+<button class="small grey" onclick="closePersonFile()">⬅ رجوع لكل الأكواد</button>
+<div id="fileHeader" style="margin-top:10px"></div>
+<div id="fileReports" style="margin-top:10px"></div>
+</div>
 </div>
 
 <div id="panePpl" class="hidden">
@@ -260,7 +264,6 @@ async function adminLogin(){
   $('aMeta').textContent=r.role==='admin'?'متحكم في كل شيء ومطلع على كل شيء':'مطلع على تقارير كل المخيمات ويسجل ملاحظاته';
   $('tabPpl').style.display=r.role==='admin'?'':'none';
   $('tabSet').style.display=r.role==='admin'?'':'none';
-  $('repDate').value=todayISO();
   show('scr-admin');
   adminTab('rep');
 }
@@ -275,18 +278,40 @@ function adminTab(t){
   if(t==='ppl')loadPeople();
 }
 function setSiteFilter(s){siteFilter=s;document.querySelectorAll('#siteChips button').forEach(function(b){b.classList.toggle('sel',b.dataset.site===s)});loadReports()}
+var allPplCache=[], allRepsCache=[];
 async function loadReports(){
-  $('reportsList').innerHTML='جاري التحميل...';
-  var r=await fnCall({action:'all-reports',pin:adminPin,site:siteFilter||undefined,date:$('repDate').value||undefined});
-  if(!r.ok){$('reportsList').innerHTML='تعذر التحميل — تأكد من الإنترنت';return}
-  var reps=r.reports||[];
-  if(!reps.length){$('reportsList').innerHTML='<div style="color:#7a8a99">لا توجد تقارير مطابقة.</div>';return}
-  $('reportsList').innerHTML=reps.map(function(rep){
-    var p=rep.hajj_people||{};
-    return '<div class="rep"><div class="hd">'+esc(p.person_name||'')+' — '+esc(p.code||'')+'</div><div class="meta">'+(SITES[p.site]||'')+' • '+(ROLES[p.role]||'')+' • 📅 '+fmtD(rep.report_date)+'</div>'+renderEntries(rep.entries)+
-    '<div style="margin-top:8px"><textarea id="note-'+rep.person_id+'" placeholder="أضف ملاحظة لهذا الشخص..."></textarea><button class="small green" style="margin-top:6px" onclick="addNote('+rep.person_id+',this)">💬 إضافة ملاحظة</button> <button class="small grey" onclick="showNotes('+rep.person_id+',this)">عرض الملاحظات</button></div><div id="notes-'+rep.person_id+'" style="margin-top:6px"></div></div>';
+  $('peopleReportsList').innerHTML='جاري التحميل...';
+  $('personFile').classList.add('hidden');
+  var rp=await fnCall({action:'list-people',pin:adminPin});
+  var rr=await fnCall({action:'all-reports',pin:adminPin});
+  if(!rp.ok||!rr.ok){$('peopleReportsList').innerHTML='تعذر التحميل — تأكد من الإنترنت';return}
+  allPplCache=rp.people||[];
+  allRepsCache=rr.reports||[];
+  var ppl=allPplCache.filter(function(p){return !siteFilter||p.site===siteFilter});
+  if(!ppl.length){$('peopleReportsList').innerHTML='<div style="color:#7a8a99">لا يوجد أشخاص.</div>';return}
+  $('peopleReportsList').innerHTML=ppl.map(function(p){
+    var reps=allRepsCache.filter(function(r){return r.person_id===p.id});
+    var last=reps.length?fmtD(reps[0].report_date):'—';
+    return '<div class="rep" style="cursor:pointer" onclick="openPersonFile('+p.id+')"><div class="hd">📁 '+esc(p.person_name)+' — '+esc(p.code)+'</div><div class="meta">'+(SITES[p.site]||'')+' • '+(ROLES[p.role]||'')+' • '+reps.length+' تقرير • آخر تقرير: '+last+'</div><div style="font-size:13px;color:#16324f;font-weight:bold">اضغط لفتح الملف ←</div></div>';
   }).join('');
 }
+async function openPersonFile(pid){
+  var p=(allPplCache||[]).find(function(x){return x.id===pid});
+  if(!p)return;
+  $('peopleReportsList').innerHTML='';
+  $('personFile').classList.remove('hidden');
+  $('fileHeader').innerHTML='<div class="rep"><div class="hd">📁 '+esc(p.person_name)+' — '+esc(p.code)+'</div><div class="meta">'+(SITES[p.site]||'')+' • '+(ROLES[p.role]||'')+'</div></div>';
+  $('fileReports').innerHTML='جاري التحميل...';
+  var r=await fnCall({action:'all-reports',pin:adminPin,person_id:pid});
+  if(!r.ok){$('fileReports').innerHTML='تعذر التحميل — تأكد من الإنترنت';return}
+  var reps=(r.reports||[]).filter(function(x){return x.person_id===pid});
+  var html=reps.length?reps.map(function(rep){
+    return '<div class="rep"><div class="hd">📅 '+fmtD(rep.report_date)+'</div>'+renderEntries(rep.entries)+'</div>';
+  }).join(''):'<div style="color:#7a8a99">لا توجد تقارير لهذا الكود بعد.</div>';
+  html+='<div style="margin-top:8px"><textarea id="note-'+pid+'" placeholder="أضف ملاحظة لهذا الشخص..."></textarea><button class="small green" style="margin-top:6px" onclick="addNote('+pid+',this)">💬 إضافة ملاحظة</button> <button class="small grey" onclick="showNotes('+pid+',this)">عرض الملاحظات</button></div><div id="notes-'+pid+'" style="margin-top:6px"></div>';
+  $('fileReports').innerHTML=html;
+}
+function closePersonFile(){ $('personFile').classList.add('hidden'); loadReports(); }
 async function addNote(pid,btn){
   var ta=$('note-'+pid);if(!ta)return;
   var text=ta.value.trim();if(!text)return;
