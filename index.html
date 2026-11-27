@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>شركة صالح الظفيري للحج</title>
+<title>تقارير شركة صالح الظفيري</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#f2f4f7;color:#1c2733}
@@ -164,7 +164,7 @@ footer{text-align:center;font-size:12px;color:#7a8a99;padding:18px 10px 26px;lin
 <div id="paneSet" class="hidden">
 <h3>🔐 تغيير أكواد الإدارة</h3>
 <label>كود الأدمن الرئيسي الجديد</label><input id="setAdminPin" type="password" dir="ltr" inputmode="numeric" placeholder="4 أرقام على الأقل — اتركه فارغًا لعدم التغيير">
-<label>كود الأدمن الفرعي الجديد</label><input id="setSubPin" type="password" dir="ltr" inputmode="numeric" placeholder="4 أرقام على الأقل — اتركه فارغًا لعدم التغيير">
+<label>كود الأدمن الجديد</label><input id="setSubPin" type="password" dir="ltr" inputmode="numeric" placeholder="4 أرقام على الأقل — اتركه فارغًا لعدم التغيير">
 <button class="calc" onclick="changePins()">حفظ التغيير</button>
 <div class="msg" id="setMsg"></div>
 </div>
@@ -231,6 +231,7 @@ async function personLogin(){
   if(!r.ok){$('homeMsg').textContent=r.error==='net'?'لا يوجد اتصال — تأكد من الإنترنت وحاول مجددًا':'الكود غير صحيح أو موقوف';return}
   me=r.person;
   try{localStorage.setItem('hajjCode',code)}catch(e){}
+  try{localStorage.removeItem('hajjAdminPin')}catch(e){}
   openPerson();
 }
 function openPerson(){
@@ -251,7 +252,7 @@ async function loadMine(){
   var t=todayISO(), tod=null, past=[];
   (r.reports||[]).forEach(function(rep){if(rep.report_date===t)tod=rep;else past.push(rep)});
   $('todayEntries').innerHTML=tod?renderEntries(tod.entries):'<div style="color:#7a8a99;font-size:14px">لا يوجد تقرير اليوم بعد — سجل أول عمل.</div>';
-  $('myNotes').innerHTML=(r.notes||[]).length?(r.notes||[]).map(function(n){return '<div class="note"><div class="t">'+fmtD((n.created_at||'').slice(0,10))+' • '+(n.author_role==='admin'?'الأدمن الرئيسي':'الأدمن الفرعي')+'</div><div class="x">'+esc(n.note)+'</div></div>'}).join(''):'<div style="color:#7a8a99;font-size:14px">لا توجد ملاحظات بعد.</div>';
+  $('myNotes').innerHTML=(r.notes||[]).length?(r.notes||[]).map(function(n){return '<div class="note"><div class="t">'+fmtD((n.created_at||'').slice(0,10))+' • '+(n.author_role==='admin'?'الأدمن الرئيسي':'الأدمن')+'</div><div class="x">'+esc(n.note)+'</div></div>'}).join(''):'<div style="color:#7a8a99;font-size:14px">لا توجد ملاحظات بعد.</div>';
   $('pastReports').innerHTML=past.length?past.map(function(rep){return '<div class="rep"><div class="hd">📅 '+fmtD(rep.report_date)+' — '+rep.entries.length+' تسجيل</div><div>'+renderEntries(rep.entries)+'</div></div>'}).join(''):'<div style="color:#7a8a99;font-size:14px">لا توجد تقارير سابقة.</div>';
 }
 var reportsOpen=false;
@@ -284,9 +285,11 @@ async function adminLogin(){
   var pin=$('adminPin').value.trim();
   $('adminMsg').textContent='جاري التحقق...';
   var r=await fnCall({action:'admin-login',pin:pin});
-  if(!r.ok){$('adminMsg').textContent=r.error==='net'?'لا يوجد اتصال — تأكد من الإنترنت وحاول مجددًا':'كود الإدارة غير صحيح';return}
+  if(!r.ok){try{localStorage.removeItem('hajjAdminPin')}catch(e){};$('adminMsg').textContent=r.error==='net'?'لا يوجد اتصال — تأكد من الإنترنت وحاول مجددًا':'كود الإدارة غير صحيح';return}
   adminRole=r.role;adminPin=pin;
-  $('aTitle').textContent=r.role==='admin'?'⚙️ الأدمن الرئيسي':'⚙️ الأدمن الفرعي';
+  try{localStorage.setItem('hajjAdminPin',pin)}catch(e){}
+  try{localStorage.removeItem('hajjCode')}catch(e){}
+  $('aTitle').textContent=r.role==='admin'?'⚙️ الأدمن الرئيسي':'⚙️ الأدمن';
   $('aMeta').textContent=r.role==='admin'?'متحكم في كل شيء ومطلع على كل شيء':'مطلع على تقارير كل المخيمات ويسجل ملاحظاته';
   $('tabPpl').style.display=r.role==='admin'?'':'none';
   $('tabSet').style.display=r.role==='admin'?'':'none';
@@ -378,7 +381,7 @@ async function showNotes(pid,btn){
   box.innerHTML='جاري التحميل...';
   var r=await fnCall({action:'list-notes',pin:adminPin,person_id:pid});
   if(!r.ok){box.innerHTML='تعذر التحميل';return}
-  box.innerHTML=(r.notes||[]).length?(r.notes||[]).map(function(n){return '<div class="note"><div class="t">'+fmtD((n.created_at||'').slice(0,10))+' • '+(n.author_role==='admin'?'الأدمن الرئيسي':'الأدمن الفرعي')+'</div><div class="x">'+esc(n.note)+'</div></div>'}).join(''):'<div style="color:#7a8a99;font-size:14px">لا توجد ملاحظات.</div>';
+  box.innerHTML=(r.notes||[]).length?(r.notes||[]).map(function(n){return '<div class="note"><div class="t">'+fmtD((n.created_at||'').slice(0,10))+' • '+(n.author_role==='admin'?'الأدمن الرئيسي':'الأدمن')+'</div><div class="x">'+esc(n.note)+'</div></div>'}).join(''):'<div style="color:#7a8a99;font-size:14px">لا توجد ملاحظات.</div>';
 }
 async function loadPeople(){
   $('peopleList').innerHTML='جاري التحميل...';
@@ -409,17 +412,20 @@ async function changePins(){
   var a=$('setAdminPin').value.trim(),s=$('setSubPin').value.trim();
   if(!a&&!s){$('setMsg').textContent='اكتب كودًا جديدًا أولًا';$('setMsg').className='msg err';return}
   var r=await fnCall({action:'set-pins',pin:adminPin,adminPin:a||undefined,subadminPin:s||undefined});
-  if(r.ok){if(a)adminPin=a;$('setAdminPin').value='';$('setSubPin').value='';$('setMsg').textContent='تم حفظ التغيير';$('setMsg').className='msg ok';}
+  if(r.ok){if(a){adminPin=a;try{localStorage.setItem('hajjAdminPin',a)}catch(e){}}$('setAdminPin').value='';$('setSubPin').value='';$('setMsg').textContent='تم حفظ التغيير';$('setMsg').className='msg ok';}
   else $('setMsg').textContent=r.error==='net'?'لا يوجد اتصال — تأكد من الإنترنت':'تعذر الحفظ — الكود قصير (4 أرقام على الأقل)';
 }
 function logout(){
   me=null;adminRole=null;adminPin='';
   try{localStorage.removeItem('hajjCode')}catch(e){}
+  try{localStorage.removeItem('hajjAdminPin')}catch(e){}
   $('homeCode').value='';$('adminPin').value='';
   show('scr-home');
 }
-/* ===== Init: auto-login with saved code ===== */
+/* ===== Init: auto-login with saved session (admin pin first, then person code) ===== */
 (function(){
+  var ap=null;try{ap=localStorage.getItem('hajjAdminPin')}catch(e){}
+  if(ap){$('adminPin').value=ap;adminLogin();return}
   var saved=null;try{saved=localStorage.getItem('hajjCode')}catch(e){}
   if(saved){
     $('homeCode').value=saved;
