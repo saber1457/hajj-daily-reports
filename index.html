@@ -60,6 +60,13 @@ button.small.grey{background:#eef2f6;color:#16324f;border:1px solid #c9d4de}
 table.reptable{width:100%;border-collapse:collapse}
 table.reptable th,table.reptable td{border:1px solid #9aa8b5;padding:8px 10px;font-size:15px;line-height:1.8;text-align:right}
 table.reptable th{background:#eef2f6;color:#16324f}
+@media print{
+  header,footer,.tabs,.noprint{display:none !important}
+  body{background:#fff}
+  main{max-width:800px;padding:0}
+  section.card{border:0;padding:0;margin:0}
+  .page{box-shadow:none;page-break-inside:avoid}
+}
 .hidden{display:none}
 footer{text-align:center;font-size:12px;color:#7a8a99;padding:18px 10px 26px;line-height:1.9}
 </style>
@@ -123,6 +130,7 @@ footer{text-align:center;font-size:12px;color:#7a8a99;padding:18px 10px 26px;lin
 <button id="tabRep" class="active" onclick="adminTab('rep')">📋 التقارير</button>
 <button id="tabPpl" onclick="adminTab('ppl')">👥 الأشخاص</button>
 <button id="tabSet" onclick="adminTab('set')">⚙️ الإعدادات</button>
+<button id="tabAll" onclick="adminTab('all')">📄 التقرير المجمع</button>
 </div>
 
 <div id="paneRep">
@@ -159,6 +167,14 @@ footer{text-align:center;font-size:12px;color:#7a8a99;padding:18px 10px 26px;lin
 <label>كود الأدمن الفرعي الجديد</label><input id="setSubPin" type="password" dir="ltr" inputmode="numeric" placeholder="4 أرقام على الأقل — اتركه فارغًا لعدم التغيير">
 <button class="calc" onclick="changePins()">حفظ التغيير</button>
 <div class="msg" id="setMsg"></div>
+</div>
+
+<div id="paneAll" class="hidden">
+<div class="noprint" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+<button class="small green" onclick="printAll()">🖨️ طباعة / تصدير PDF</button>
+<button class="small grey" onclick="loadAllReport()">🔄 تحديث</button>
+</div>
+<div id="allReport"></div>
 </div>
 
 <button class="ghost" onclick="logout()">🚪 تسجيل الخروج</button>
@@ -281,12 +297,39 @@ function adminTab(t){
   $('tabRep').classList.toggle('active',t==='rep');
   $('tabPpl').classList.toggle('active',t==='ppl');
   $('tabSet').classList.toggle('active',t==='set');
+  $('tabAll').classList.toggle('active',t==='all');
   $('paneRep').classList.toggle('hidden',t!=='rep');
   $('panePpl').classList.toggle('hidden',t!=='ppl');
   $('paneSet').classList.toggle('hidden',t!=='set');
+  $('paneAll').classList.toggle('hidden',t!=='all');
   if(t==='rep')loadReports();
   if(t==='ppl')loadPeople();
+  if(t==='all')loadAllReport();
 }
+async function loadAllReport(){
+  $('allReport').innerHTML='جاري التحميل...';
+  var rp=await fnCall({action:'list-people',pin:adminPin});
+  var rr=await fnCall({action:'all-reports',pin:adminPin});
+  if(!rp.ok||!rr.ok){$('allReport').innerHTML='تعذر التحميل — تأكد من الإنترنت';return}
+  var ppl=rp.people||[], reps=rr.reports||[];
+  var order=['admin','mina','arafat','muzdalifah'];
+  var html='<div class="page"><div class="pdate">شركة صالح الظفيري للحج — ترخيص 10121</div><div style="text-align:center;font-size:18px;font-weight:bold;color:#16324f;margin-bottom:6px">📄 التقرير المجمع — تقارير ومتابعة الأعمال اليومية</div><div style="text-align:center;font-size:14px;color:#555">تاريخ التقرير: '+fmtD(todayISO())+'</div></div>';
+  order.forEach(function(site){
+    var sp=ppl.filter(function(p){return p.site===site});
+    if(!sp.length)return;
+    html+='<div class="sect"><h2 style="color:#16324f;border-bottom:2px solid #16324f;padding-bottom:6px;margin:18px 0 10px">'+SITES[site]+'</h2>';
+    sp.forEach(function(p){
+      var pr=reps.filter(function(r){return r.person_id===p.id});
+      html+='<div style="margin-bottom:12px"><div style="font-weight:bold;font-size:16px;color:#16324f">'+esc(p.person_name)+' — '+esc(p.code)+' ('+(ROLES[p.role]||'')+')</div>';
+      if(!pr.length){html+='<div style="color:#7a8a99;font-size:14px">لا توجد تقارير.</div>';}
+      else{html+=pr.map(function(rep){return '<div class="page"><div class="pdate">📅 '+fmtD(rep.report_date)+'</div>'+renderFileEntries(rep.entries)+'</div>'}).join('');}
+      html+='</div>';
+    });
+    html+='</div>';
+  });
+  $('allReport').innerHTML=html;
+}
+function printAll(){window.print()}
 function setSiteFilter(s){siteFilter=s;document.querySelectorAll('#siteChips button').forEach(function(b){b.classList.toggle('sel',b.dataset.site===s)});loadReports()}
 var allPplCache=[], allRepsCache=[];
 async function loadReports(){
