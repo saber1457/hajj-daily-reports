@@ -55,6 +55,11 @@ button.small.grey{background:#eef2f6;color:#16324f;border:1px solid #c9d4de}
 .tabs{display:flex;gap:6px;margin-bottom:12px}
 .tabs button{flex:1;border:1px solid #c9d4de;background:#eef2f6;color:#16324f;border-radius:8px;padding:10px 4px;font-size:15px;font-weight:bold;cursor:pointer;font-family:inherit}
 .tabs button.active{background:#16324f;color:#fff;border-color:#16324f}
+.page{background:#fff;border:1px solid #9aa8b5;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.15);padding:18px 16px;margin-bottom:14px}
+.page .pdate{text-align:center;font-size:18px;font-weight:bold;color:#16324f;border-bottom:2px solid #16324f;padding-bottom:8px;margin-bottom:12px}
+table.reptable{width:100%;border-collapse:collapse}
+table.reptable th,table.reptable td{border:1px solid #9aa8b5;padding:8px 10px;font-size:15px;line-height:1.8;text-align:right}
+table.reptable th{background:#eef2f6;color:#16324f}
 .hidden{display:none}
 footer{text-align:center;font-size:12px;color:#7a8a99;padding:18px 10px 26px;line-height:1.9}
 </style>
@@ -239,6 +244,11 @@ function toggleMyReports(force){
   $('myReportsBox').classList.toggle('hidden',!reportsOpen);
   $('reportsBtn').textContent=reportsOpen?'📂 إخفاء التقارير':'📂 التقارير';
 }
+function renderFileEntries(entries){
+  if(!entries||!entries.length)return '<div style="color:#7a8a99;font-size:14px">لا توجد تسجيلات.</div>';
+  var rows=entries.map(function(e,i){return '<tr><td style="width:40px;text-align:center">'+(i+1)+'</td><td>'+esc(e.text)+'</td></tr>'}).join('');
+  return '<table class="reptable"><tr><th style="width:40px">م</th><th>الأعمال التي تمت</th></tr>'+rows+'</table>';
+}
 function renderEntries(entries){
   if(!entries||!entries.length)return '<div style="color:#7a8a99;font-size:14px">لا توجد تسجيلات.</div>';
   return entries.map(function(e){return '<div class="entry"><div class="t">🕐 '+fmtTime(e.time)+'</div><div class="x">'+esc(e.text)+'</div></div>'}).join('');
@@ -306,7 +316,7 @@ async function openPersonFile(pid){
   if(!r.ok){$('fileReports').innerHTML='تعذر التحميل — تأكد من الإنترنت';return}
   var reps=(r.reports||[]).filter(function(x){return x.person_id===pid});
   var html=reps.length?reps.map(function(rep){
-    return '<div class="rep"><div class="hd">📅 '+fmtD(rep.report_date)+'</div>'+renderEntries(rep.entries)+'</div>';
+    return '<div class="page"><div class="pdate">📅 '+fmtD(rep.report_date)+'</div>'+renderFileEntries(rep.entries)+'</div>';
   }).join(''):'<div style="color:#7a8a99">لا توجد تقارير لهذا الكود بعد.</div>';
   html+='<div style="margin-top:8px"><textarea id="note-'+pid+'" placeholder="أضف ملاحظة لهذا الشخص..."></textarea><button class="small green" style="margin-top:6px" onclick="addNote('+pid+',this)">💬 إضافة ملاحظة</button> <button class="small grey" onclick="showNotes('+pid+',this)">عرض الملاحظات</button></div><div id="notes-'+pid+'" style="margin-top:6px"></div>';
   $('fileReports').innerHTML=html;
