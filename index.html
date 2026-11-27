@@ -359,7 +359,8 @@ async function openPersonFile(pid){
   if(!p)return;
   $('peopleReportsList').innerHTML='';
   $('personFile').classList.remove('hidden');
-  $('fileHeader').innerHTML='<div style="text-align:center;font-size:22px;font-weight:bold;color:#16324f;margin-bottom:8px">تقرير شركة صالح الظفيري</div><div class="rep"><div class="hd">📁 '+esc(p.person_name)+' — '+esc(p.code)+'</div><div class="meta">'+(SITES[p.site]||'')+' • '+(ROLES[p.role]||'')+'</div></div>';
+  var lg=(document.querySelector('header img')||{}).src||'';
+  $('fileHeader').innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px"><img src="'+lg+'" alt="" style="width:90px;height:90px;border-radius:8px;flex:none"><div style="flex:1;text-align:center;font-size:22px;font-weight:bold;color:#16324f">تقرير شركة صالح الظفيري</div><img src="'+lg+'" alt="" style="width:90px;height:90px;border-radius:8px;flex:none"></div><div class="rep"><div class="hd">📁 '+esc(p.person_name)+' — '+esc(p.code)+'</div><div class="meta">'+(SITES[p.site]||'')+' • '+(ROLES[p.role]||'')+'</div></div>';
   $('fileReports').innerHTML='جاري التحميل...';
   var r=await fnCall({action:'all-reports',pin:adminPin,person_id:pid});
   if(!r.ok){$('fileReports').innerHTML='تعذر التحميل — تأكد من الإنترنت';return}
